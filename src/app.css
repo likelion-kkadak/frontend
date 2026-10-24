@@ -1,0 +1,365 @@
+/* React 화면 전환 시 추가된 스타일 (기존 styles.css 톤에 맞춤) */
+
+.full-center {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.center-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.center-actions .btn {
+  width: auto;
+}
+
+/* a 태그를 버튼 모양으로 */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.btn:disabled,
+.filter:disabled,
+.review-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.decision-main {
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+  outline-offset: 3px;
+}
+
+.meta a {
+  color: var(--p);
+  text-decoration: none;
+}
+
+/* 상태 배지 추가분 */
+.st-discarded {
+  color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.st-superseded {
+  color: #64748b;
+  background: #eef2f7;
+}
+
+.st-failed {
+  color: #dc2626;
+  background: #fff0f0;
+}
+
+.cat-gray {
+  color: #6b7280;
+  background: #f1f1f5;
+}
+
+.review-actions .reject {
+  color: #b91c1c;
+  border-color: #fbdada;
+  background: #fff7f7;
+}
+
+.review-tabs {
+  margin: 0 0 12px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+/* 대시보드 동기화 */
+.sync-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 10px;
+  color: #5d6674;
+}
+
+.sync-progress {
+  height: 4px;
+  margin: -6px 0 12px;
+  border-radius: 4px;
+  background: #ececff;
+  overflow: hidden;
+}
+
+.sync-progress i {
+  display: block;
+  height: 100%;
+  background: var(--p);
+  transition: width 0.3s;
+}
+
+.metrics-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metric-note {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.quick-card .prompt {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+}
+
+.why-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.why-search-row .btn {
+  width: auto;
+  min-width: 80px;
+}
+
+/* 사이드바 서버 선택 */
+.guild-select {
+  width: 100%;
+  height: 28px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 9px;
+  color: #4d5664;
+}
+
+img.avatar {
+  object-fit: cover;
+}
+
+.sidebar-brand {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.setup-user {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+/* 폼 */
+.field-error {
+  display: block;
+  margin: 4px 0 0;
+  color: #dc2626;
+  font-size: 9px;
+}
+
+.detail-form .detail-dates {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-value {
+  margin: 0;
+  font-size: 10px;
+  color: #303847;
+}
+
+.alt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 9px;
+}
+
+.quote-list,
+.action-list {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 9px;
+  color: #5d6674;
+  line-height: 1.7;
+}
+
+.detail-form .detail-actions {
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detail-form .detail-actions .review-actions {
+  margin-top: 0;
+}
+
+.detail-form .detail-actions .btn {
+  width: auto;
+}
+
+.server-invite {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #d9d8ff;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--p);
+  font-size: 8px;
+}
+
+.channel-checks label.is-disabled,
+.settings-channel-list label.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.timeline section + section {
+  margin-top: 6px;
+}
+
+/* 명세 10장 미구현 API 표시 */
+.pending-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #fff6e5;
+  color: #b7791f;
+  font-size: 8px;
+  font-weight: 700;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.answer-panel .answer-note {
+  margin: 0 0 6px;
+  color: #7c83a8;
+  font-size: 9px;
+}
+
+.filter-note {
+  margin: 6px 0 0;
+}
+
+.source-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+}
+
+.time-note {
+  margin: -4px 0 12px;
+  color: #8b93a1;
+  font-size: 9px;
+}
+
+.detail-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 4px 0 8px;
+  color: #8b93a1;
+  font-size: 9px;
+}
+
+.eyebrow-link {
+  font-size: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+.alt-remove {
+  display: block;
+  margin-top: 6px;
+  color: #b91c1c;
+  font-size: 9px;
+}
+
+.setup-again {
+  margin-top: 8px;
+}
+
+.setup-footer-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.setup-footer .btn {
+  width: auto;
+}
+
+.activity-title {
+  color: #1f2937;
+  font-size: 10px;
+  text-align: left;
+}
+
+.timeline-options {
+  margin-top: -8px;
+}
+
+.timeline-group-label {
+  margin: 18px 0 4px -20px;
+  padding-left: 20px;
+  font-size: 12px;
+}
+
+.demo-banner {
+  position: fixed;
+  z-index: 20;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #252a38;
+  color: #fff;
+  font-size: 10px;
+  text-decoration: none;
+  box-shadow: 0 4px 14px #1113;
+}
+
+@media (max-width: 720px) {
+  .metrics-three {
+    grid-template-columns: 1fr;
+  }
+
+  .sync-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .why-search-row {
+    flex-wrap: wrap;
+  }
+
+  .detail-form .detail-dates {
+    grid-template-columns: 1fr;
+  }
+}

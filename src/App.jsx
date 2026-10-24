@@ -1,40 +1,50 @@
-import { useEffect, useRef } from 'react';
-import prototypeMarkup from './prototype.html?raw';
+import { useState } from 'react';
+import { LoadingState } from './components/ApiState.jsx';
+import { ToastProvider } from './components/Toast.jsx';
+import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
+import { useHashRoute } from './router.js';
+import Landing from './screens/Landing.jsx';
+import OAuthCallback, { hasOAuthParams } from './screens/OAuthCallback.jsx';
+import PrototypeDemo from './screens/PrototypeDemo.jsx';
+import Setup from './screens/Setup.jsx';
+import Shell from './screens/Shell.jsx';
+import './app.css';
+import './redesign.css';
 
-/**
- * React mounts the product shell; the existing prototype's delegated UI logic
- * runs against that mounted DOM while its screens are migrated into components.
- */
+const isDemo = new URLSearchParams(window.location.search).has('demo');
+
 export default function App() {
-  const shellRef = useRef(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadScript = (src) => new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = false;
-      script.onload = resolve;
-      script.onerror = () => reject(new Error(`화면 스크립트를 불러오지 못했습니다: ${src}`));
-      document.body.appendChild(script);
-    });
-
-    loadScript('/js/data.js')
-      .then(() => loadScript('/js/app.js'))
-      .catch((error) => {
-        if (!cancelled && shellRef.current) {
-          shellRef.current.insertAdjacentHTML('beforeend', `<p class="prototype-error">${error.message}</p>`);
-        }
-      });
-
-    return () => { cancelled = true; };
-  }, []);
+  // /?demo : 팀원이 만든 샘플 데이터 프로토타입 (API 호출 없음)
+  if (isDemo) return <PrototypeDemo />;
 
   return (
-    <div
-      ref={shellRef}
-      className="prototype-shell"
-      dangerouslySetInnerHTML={{ __html: prototypeMarkup }}
-    />
+    <ToastProvider>
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    </ToastProvider>
   );
+}
+
+/**
+ * 화면 결정 순서: OAuth 콜백 → 세션 확인 중 → 비로그인(랜딩) → 연결 설정 → 메인 화면
+ */
+function Root() {
+  const auth = useAuth();
+  const route = useHashRoute();
+  const [inCallback, setInCallback] = useState(hasOAuthParams);
+
+  if (inCallback) return <OAuthCallback onDone={() => setInCallback(false)} />;
+
+  if (auth.isChecking) {
+    return (
+      <div className="full-center">
+        <LoadingState variant="spinner" label="로그인 정보를 확인하고 있어요…" />
+      </div>
+    );
+  }
+
+  if (!auth.isAuthenticated) return <Landing />;
+  if (route.page === 'setup') return <Setup />;
+  return <Shell route={route} />;
 }
