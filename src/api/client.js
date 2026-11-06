@@ -23,6 +23,31 @@ apiClient.interceptors.request.use((config) => {
 });
 
 const unauthorizedListeners = new Set();
+const guildAccessListeners = new Set();
+let scopeVersion = 0;
+let tokenRenewal = null;
+
+function renewToken(scope) {
+  if (tokenRenewal?.scope === scope) return tokenRenewal.promise;
+  const accountId = tokenStore.get()?.userId;
+  const promise = apiClient.post('/api/v1/auth/token').then(({ data }) => {
+    if (scope !== scopeVersion) throw new ApiError({ status: 0, code: 'CANCELED' });
+    if (!data?.success) throw new ApiError({ status: 401, code: 'UNAUTHORIZED' });
+    if (accountId && data.data.userId && String(accountId) !== String(data.data.userId)) {
+      throw new ApiError({ status: 401, code: 'ACCOUNT_CHANGED' });
+    }
+    tokenStore.set(data.data);
+  }).finally(() => { if (tokenRenewal?.promise === promise) tokenRenewal = null; });
+  tokenRenewal = { scope, promise };
+  return promise;
+}
+
+/** 이전 계정·서버에서 시작한 응답이 새 화면에 반영되는 것을 막는다. */
+export function invalidateRequestScope() { scopeVersion++; }
+export function onGuildAccessChanged(fn) {
+  guildAccessListeners.add(fn);
+  return () => guildAccessListeners.delete(fn);
+}
 
 /** 로그인 세션이 끊겼을 때(401) 호출될 콜백을 등록한다. */
 export function onUnauthorized(fn) {
@@ -38,20 +63,44 @@ export function onUnauthorized(fn) {
  * @returns {Promise<T>}
  */
 export async function request(config) {
+  const scope = scopeVersion;
   let response;
   try {
     response = await apiClient.request(config);
   } catch (error) {
     const apiError = toApiError(error);
+    if (scope !== scopeVersion) throw new ApiError({ status: 0, code: 'CANCELED' });
     const headers = error?.config?.headers;
     const sentToken = Boolean(headers?.get?.('Authorization') ?? headers?.Authorization);
     // 토큰을 보냈는데 401이면 세션 만료 → 토큰 제거 후 로그인 흐름 재시작 (API 명세 5장)
-    if (apiError.status === 401 && sentToken) {
+    if (apiError.status === 401 && !config.url.startsWith('/api/v1/auth/')) {
+      if (!config._tokenRetried) {
+        try {
+          await renewToken(scope);
+          if (['GET', 'HEAD'].includes((config.method ?? 'GET').toUpperCase())) {
+            return request({ ...config, _tokenRetried: true });
+          }
+          // 변경 요청은 토큰만 복구하고 자동 재전송하지 않는다.
+          throw apiError;
+        } catch (renewalError) {
+          if (renewalError === apiError) throw apiError;
+          if (scope !== scopeVersion) throw new ApiError({ status: 0, code: 'CANCELED' });
+        }
+      }
+      tokenStore.clear();
+      unauthorizedListeners.forEach((fn) => fn(apiError));
+    } else if (apiError.status === 401 && (sentToken || ['/api/v1/auth/guilds', '/api/v1/auth/me'].includes(config.url)) && !['/api/v1/auth/session', '/api/v1/auth/login', '/api/v1/auth/authorize'].includes(config.url)) {
+      // Cookie 세션이 여전히 유효할 수 있으므로 AuthProvider가 세션을 복원한다.
       tokenStore.clear();
       unauthorizedListeners.forEach((fn) => fn(apiError));
     }
+    if (['GUILD_ACCESS_DENIED', 'GUILD_ACCESS_UNAVAILABLE'].includes(apiError.code)) {
+      guildAccessListeners.forEach((fn) => fn(apiError));
+    }
     throw apiError;
   }
+
+  if (scope !== scopeVersion) throw new ApiError({ status: 0, code: 'CANCELED' });
 
   const body = response.data;
   if (!body || body.success !== true) {

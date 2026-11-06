@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LoadingState } from './components/ApiState.jsx';
+import { ErrorState, LoadingState } from './components/ApiState.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { useHashRoute } from './router.js';
@@ -44,7 +44,19 @@ function Root() {
     );
   }
 
+  if (auth.status === 'session-error') return (
+    <div className="full-center"><ErrorState error={auth.error} title="로그인 정보를 확인하지 못했어요" onRetry={auth.retrySession} /></div>
+  );
   if (!auth.isAuthenticated) return <Landing />;
-  if (route.page === 'setup') return <Setup />;
-  return <Shell route={route} />;
+  if (auth.isRevalidating) return <div className="full-center"><LoadingState variant="spinner" label="봇이 설치된 서버를 확인하고 있어요…" /></div>;
+  if (auth.guildSelection.status === 'unavailable') return (
+    <div className="full-center"><div className="panel api-error" role="alert">
+      <h2>서버의 봇 설치 여부를 확인하지 못했어요</h2>
+      <p>잠시 후 다시 확인해 주세요. 로그인은 유지됩니다.</p>
+      <button className="btn btn-primary" onClick={() => auth.reloadGuilds().catch(() => undefined)}>다시 시도</button>
+      <button className="btn btn-outline" onClick={auth.logout}>로그아웃</button>
+    </div></div>
+  );
+  if (route.page === 'setup') return <Setup key={auth.scopeKey} />;
+  return <Shell key={auth.scopeKey} route={route} />;
 }
