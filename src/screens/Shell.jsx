@@ -23,7 +23,7 @@ const NAV = [
 const CRUMB = { ...Object.fromEntries(NAV.map((n) => [n.page, n.label])), decision: '카드 상세 / 편집' };
 
 export default function Shell({ route }) {
-  const { user, selectedGuild, guildId, canManage } = useAuth();
+  const { user, selectedGuild, guildId, canManage, reloadGuilds } = useAuth();
   const toast = useToast();
 
   // 대시보드 요약은 사이드바 뱃지·동기화 상태에도 쓰이므로 여기서 한 번만 조회
@@ -110,6 +110,7 @@ export default function Shell({ route }) {
             KKADAK&nbsp; / &nbsp;<b>{CRUMB[route.page] ?? '홈 대시보드'}</b>
           </div>
           <div className="top-actions">
+            <button type="button" className="btn btn-outline" onClick={() => reloadGuilds().catch(() => undefined)}>서버 목록 새로고침</button>
             <form className="global-search" onSubmit={submitSearch} role="search">
               <span>⌕</span>
               <input
@@ -150,7 +151,7 @@ function NoGuild() {
       <div className="metric-icon" style={{ margin: 'auto' }}>
         ◉
       </div>
-      <h2>연결된 Discord 서버가 없어요</h2>
+      <h2>봇이 설치된 가입 서버가 없습니다</h2>
       <p>
         KKADAK 봇을 프로젝트 서버에 초대한 뒤
         <br />

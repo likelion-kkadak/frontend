@@ -3,7 +3,7 @@
  * 모든 함수는 envelope를 푼 data를 돌려주고, 실패하면 ApiError를 던진다.
  * GET 함수의 마지막 인자 `{ signal }`로 AbortController 취소를 지원한다.
  */
-import { request, pathParam } from './client.js';
+import { request, pathParam, renewAccessToken } from './client.js';
 
 /* ───────────── 3.1 인증 ───────────── */
 
@@ -19,6 +19,10 @@ export const authApi = {
 
   /** → `{ guilds: DiscordGuild[] }` */
   guilds: ({ signal } = {}) => request({ method: 'GET', url: '/api/v1/auth/guilds', signal }),
+
+  session: ({ signal } = {}) => request({ method: 'POST', url: '/api/v1/auth/session', signal }),
+
+  token: () => renewAccessToken(),
 
   /** 만료 전 토큰 교체 → `{ accessToken, tokenType, expiresAt }` */
   refresh: () => request({ method: 'POST', url: '/api/v1/auth/refresh' }),
