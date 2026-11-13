@@ -118,7 +118,7 @@ export default function Setup() {
               ))}
             </select>
           ) : (
-            <div className="empty-state">접근 가능한 서버가 없어요. 봇을 초대한 뒤 서버 목록을 새로고침해 주세요.</div>
+            <div className="empty-state">봇이 설치된 가입 서버가 없습니다. 봇을 초대한 뒤 서버 목록을 새로고침해 주세요.</div>
           )}
         </section>
 
