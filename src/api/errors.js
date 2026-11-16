@@ -70,7 +70,7 @@ function fallbackCode(status) {
   return status >= 500 ? 'INTERNAL_ERROR' : 'UNKNOWN';
 }
 
-const CLIENT_CODES = new Set(['CLIENT_VALIDATION', 'OAUTH_CANCELED', 'NOT_SUPPORTED']);
+const CLIENT_CODES = new Set(['CLIENT_VALIDATION', 'OAUTH_CANCELED', 'OAUTH_FAILED', 'NOT_SUPPORTED']);
 
 /** 아직 BE API가 없어 실행할 수 없는 동작 */
 export function createNotSupportedError(message = '아직 서버에서 지원하지 않는 기능이에요.') {

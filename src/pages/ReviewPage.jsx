@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast.jsx';
 import { CategoryBadge, PageHead, Pagination, TrashIcon } from '../components/ui.jsx';
 import { useReviewAction, useReviewQueue } from '../hooks/useReviewQueue.js';
 import { navigate } from '../router.js';
+import { useServerHealth } from '../hooks/useServerHealth.jsx';
 
 /**
  * 검수 큐 (디자인: image/검수큐.png)
@@ -18,6 +19,7 @@ const DONE_TEXT = {
 
 export default function ReviewPage({ route, guildId, sync, canManage, startSync }) {
   const toast = useToast();
+  const health = useServerHealth();
   const page = Math.max(1, Number(route.params.page) || 1);
   const queue = useReviewQueue(guildId, { status: 'IN_REVIEW', page });
   const review = useReviewAction(guildId);
@@ -80,7 +82,13 @@ export default function ReviewPage({ route, guildId, sync, canManage, startSync 
             <br />
             문제가 계속되면 연결 설정을 확인해 주세요.
           </p>
-          <button type="button" className="btn btn-outline" onClick={startSync} disabled={!canManage}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={startSync}
+            disabled={!canManage || health.isBotDown}
+            title={health.isBotDown ? 'Bot 연결을 확인할 수 없어 동기화할 수 없어요' : undefined}
+          >
             다시 시도
           </button>{' '}
           <button type="button" className="btn btn-ghost" onClick={() => navigate('/settings', { tab: 'connect' })}>

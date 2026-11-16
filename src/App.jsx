@@ -11,7 +11,7 @@ import Setup from './screens/Setup.jsx';
 import Shell from './screens/Shell.jsx';
 import './app.css';
 import './redesign.css';
-import ServerReadiness from './components/ServerReadiness.jsx';
+import { isConnectionError, ServerHealthProvider, useServerHealth } from './hooks/useServerHealth.jsx';
 
 const isDemo = new URLSearchParams(window.location.search).has('demo');
 
@@ -21,11 +21,11 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <ServerReadiness>
-      <AuthProvider>
-        <Root />
-      </AuthProvider>
-      </ServerReadiness>
+      <ServerHealthProvider>
+        <AuthProvider>
+          <Root />
+        </AuthProvider>
+      </ServerHealthProvider>
     </ToastProvider>
   );
 }
@@ -37,8 +37,19 @@ function Root() {
   const auth = useAuth();
   const route = useHashRoute();
   const [inCallback, setInCallback] = useState(hasOAuthParams);
+  // Discord 콜백에서 로그인이 실패하면 랜딩 페이지 위에 오류 모달을 띄운다 (화면설계 01-01)
+  const [loginFailed, setLoginFailed] = useState(false);
 
-  if (inCallback) return <OAuthCallback onDone={() => setInCallback(false)} />;
+  if (inCallback) {
+    return (
+      <OAuthCallback
+        onDone={({ failed = false } = {}) => {
+          setLoginFailed(failed);
+          setInCallback(false);
+        }}
+      />
+    );
+  }
 
   let gate = null;
   if (auth.isChecking) {
@@ -47,10 +58,8 @@ function Root() {
         <LoadingState variant="spinner" label="로그인 정보를 확인하고 있어요…" />
       </div>
     );
-  } else if (auth.status === 'session-error') gate = (
-    <div className="full-center"><ErrorState error={auth.error} title="로그인 정보를 확인하지 못했어요" onRetry={auth.retrySession} /></div>
-  );
-  else if (!auth.isAuthenticated) gate = <Landing />;
+  } else if (auth.status === 'session-error') gate = <SessionErrorGate auth={auth} />;
+  else if (!auth.isAuthenticated) gate = <Landing loginFailed={loginFailed} onDismissFailure={() => setLoginFailed(false)} />;
   else if (auth.guildVerification?.status === 'rate_limited') gate = <GuildRateLimitedGate auth={auth} />;
   else if (auth.isRevalidating) gate = <div className="full-center"><LoadingState variant="spinner" label="봇이 설치된 서버를 확인하고 있어요…" /></div>;
   else if (auth.guildSelection.status === 'unavailable') gate = (
@@ -82,6 +91,37 @@ function Workspace({ auth, route, blocked }) {
           ? <Setup key={snapshot.auth.scopeKey} />
           : <Shell key={snapshot.auth.scopeKey} route={snapshot.route} />}
       </WorkspaceAuthProvider>
+    </div>
+  );
+}
+
+/**
+ * 세션 확인 실패. 로그인 정보는 BE만 확인할 수 있어서 이 단계는 BE 연결이 필요하다.
+ * 서버에 닿지 못한 경우엔 연결 안내를 보여주고, 서버가 다시 응답하면 자동으로 다시 확인한다.
+ */
+function SessionErrorGate({ auth }) {
+  const health = useServerHealth();
+  // 개발 서버 프록시는 BE가 꺼져 있으면 500으로 답하므로 상태 확인 결과도 같이 본다
+  const connection = isConnectionError(auth.error) || health.isBackendDown;
+  const { retrySession } = auth;
+  const wasDown = useRef(health.isBackendDown);
+  useEffect(() => {
+    if (wasDown.current && health.be === 'up') retrySession();
+    wasDown.current = health.isBackendDown;
+  }, [health.be, health.isBackendDown, retrySession]);
+
+  const retry = async () => {
+    await health.recheck();
+    retrySession();
+  };
+  return (
+    <div className="full-center">
+      <ErrorState
+        error={auth.error}
+        title={connection ? '서버에 연결할 수 없습니다' : '로그인 정보를 확인하지 못했어요'}
+        message={connection ? '서버가 응답하지 않아 로그인 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.' : undefined}
+        onRetry={retry}
+      />
     </div>
   );
 }

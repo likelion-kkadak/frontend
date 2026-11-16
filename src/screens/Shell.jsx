@@ -3,6 +3,7 @@ import SyncButton from '../components/SyncButton.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useDashboard, useSyncJob } from '../hooks/useDashboard.js';
+import { useServerHealth } from '../hooks/useServerHealth.jsx';
 import DashboardPage from '../pages/DashboardPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
 import ListPage from '../pages/ListPage.jsx';
@@ -25,6 +26,7 @@ const CRUMB = { ...Object.fromEntries(NAV.map((n) => [n.page, n.label])), decisi
 export default function Shell({ route }) {
   const { user, selectedGuild, guildId, canManage, reloadGuilds } = useAuth();
   const toast = useToast();
+  const health = useServerHealth();
 
   // 대시보드 요약은 사이드바 뱃지·동기화 상태에도 쓰이므로 여기서 한 번만 조회
   const dashboard = useDashboard(guildId);
@@ -124,7 +126,7 @@ export default function Shell({ route }) {
                 aria-label="WHY 검색"
               />
             </form>
-            <SyncButton sync={sync} canManage={canManage} disabled={!guildId} onClick={startSync} />
+            <SyncButton sync={sync} canManage={canManage} botDown={health.isBotDown} disabled={!guildId} onClick={startSync} />
             <button type="button" className="user-select" onClick={() => navigate('/settings', { tab: 'account' })}>
               <Avatar user={user} initial={initial} />
               <span>{selectedGuild?.name ?? user?.name} ⌄</span>
