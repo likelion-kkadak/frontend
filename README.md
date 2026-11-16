@@ -45,14 +45,14 @@ cp .env.example .env
 
 | 변수 | 설명 |
 | --- | --- |
-| `VITE_API_PROXY_TARGET` | 개발 서버의 `/api` 프록시 대상. 기본값 `http://localhost:3001` |
+| `VITE_API_PROXY_TARGET` | 개발 서버의 `/api`·`/health` 프록시 대상. 기본값 `http://localhost:3001` |
 | `VITE_API_BASE_URL` | 프록시 없이 BE Origin을 직접 호출할 때만 설정. 비우면 같은 Origin의 `/api` 사용 |
 | `VITE_DISCORD_BOT_INVITE_URL` | 봇 초대 링크. 봇 초대 API가 생기기 전까지 쓰는 임시 값 |
 | `VITE_PROPOSED_APIS` | BE가 구현한 "FE 요청 API" 이름을 쉼표로 나열 (`all` = 전부). 아래 [기능 플래그](#기능-플래그) 참고 |
 
 ### 3. 실행
 
-BE 서버(`http://localhost:3001`)가 먼저 실행 중이어야 합니다.
+로그인하려면 BE 서버(`http://localhost:3001`)가 실행 중이어야 합니다. BE가 꺼져 있으면 터미널에 `http proxy error … ECONNREFUSED` 로그가 반복되고 화면에는 "서버에 연결할 수 없습니다"와 다시 시도 버튼이 보입니다. BE를 켜면 새로고침 없이 자동으로 다시 연결됩니다.
 
 ```bash
 npm run dev       # 개발 서버 → http://localhost:3000
@@ -111,8 +111,9 @@ public/
 - 목록 재검증 중에는 이전 카드·채널 화면을 제거하고 요청을 취소합니다. 확인 불가 상태는 재시도 화면으로 표시하고 로그인은 유지합니다.
 - 서버 선택은 사용자별로 저장합니다. 선택한 서버가 제거되면 첫 번째 확인된 서버로 이동하고, 서버가 없으면 빈 상태를 표시합니다.
 - 서버 재확인 중에는 이전 화면을 숨기고 조작·데이터 요청을 차단합니다. 동일한 계정·적격 서버로 복구하면 저장 전 카드·채널 편집을 유지하며, 계정 또는 선택 서버가 바뀌면 이전 화면을 제거합니다.
-- Discord 인증 취소 화면의 ‘처음 화면으로’는 쿠키 세션을 확인해 기존 계정 또는 로그인 시작 화면으로 복귀합니다.
-- `npm test`는 실제 Chrome·React·HTTP 요청으로 세션 복원, 선택 무효화, 실제 화면의 초안 보존·인증 취소, JWT 갱신 경합을 검증합니다. Chrome 경로는 `CHROME_EXECUTABLE`로 지정할 수 있습니다. GGADDAK에서는 Herdr verify pane에서 실행하며 실제 BE 연동은 부모 저장소 E2E에서 별도로 검증합니다.
+- Discord 동의 화면에서 사용자가 직접 취소하면(`error=access_denied`) 오류 안내 없이 쿠키 세션을 확인해 기존 계정 또는 랜딩으로 돌아갑니다.
+- 그 외 이유로 로그인에 실패하면 랜딩 위에 "Discord 연결에 실패했습니다." 모달을 띄웁니다. ‘다시 시도’는 Discord 인증을 다시 시작하며, 실패하면 모달을 유지합니다.
+- `npm test`는 실제 Chrome·React·HTTP 요청으로 세션 복원, 선택 무효화, 실제 화면의 초안 보존·인증 취소·로그인 실패 모달, JWT 갱신 경합, BE·Bot 연결 오류 안내를 검증합니다. Chrome 경로는 `CHROME_EXECUTABLE`로 지정합니다(기본값은 macOS 경로라 Windows에서는 필수, 예: `CHROME_EXECUTABLE="C:/Program Files/Google/Chrome/Application/chrome.exe" npm test`). GGADDAK에서는 Herdr verify pane에서 실행하며 실제 BE 연동은 부모 저장소 E2E에서 별도로 검증합니다.
 
 ## 기능 플래그
 
@@ -136,6 +137,20 @@ VITE_PROPOSED_APIS=decisionDelete,listFilters
 - 응답에 필드만 추가되는 항목(`search`의 `answer`, `discord/channels`의 `topic`)은 플래그 없이, 필드가 오면 바로 화면에 반영됩니다.
 - 플래그가 꺼진 동안에는 기존 API로 가능한 만큼 대신 처리합니다. 예를 들어 보류 → 확정은 기존 검수 API로 바꾸고, 여러 상태의 목록은 상태별로 받아 FE에서 합칩니다.
 - BE가 경로·필드 이름을 바꾸면 `src/api/endpoints.js`의 해당 함수만 고치면 됩니다.
+
+## 연결 오류 처리
+
+화면 진입은 로그인 여부만 확인합니다. BE·Bot·Discord 상태는 기능마다 필요한 것만 확인하고, 연결 문제는 화면을 막지 않고 안내만 합니다 (화면설계 V0.2).
+
+| 상황 | 화면 | 동작 |
+| --- | --- | --- |
+| Discord 로그인 실패 | 랜딩 위 오류 모달 | ‘다시 시도’로 Discord 인증 재시작 |
+| BE 응답 없음 | 대시보드 제목 아래 빨간 배너 | ‘다시 시도’로 연결 재확인 후 데이터 다시 조회. 기존 콘텐츠는 가리지 않음 |
+| Bot 연결 끊김 | 동기화 영역에 "⚠ Bot 연결을 확인할 수 없습니다." | 동기화 버튼만 비활성화. 조회·검수·확정·수정·보류는 그대로 사용 |
+
+- 연결 상태는 `src/hooks/useServerHealth.jsx`가 `GET /health`로 확인합니다. 평소 30초, 끊긴 연결이 있으면 10초마다 다시 확인하고, 창 포커스·네트워크 복귀 때도 확인합니다. 복구되면 안내가 자동으로 사라집니다.
+- `/health` 응답의 `checks.database`가 `false`이거나 응답이 없으면 BE 오류, `checks.bot`이 `false`면 Bot 오류로 봅니다. 값이 없으면 막지 않습니다.
+- 로그인 정보는 BE만 확인할 수 있어서, 앱을 열 때부터 BE가 꺼져 있으면 "서버에 연결할 수 없습니다" 화면이 보입니다. 서버가 다시 응답하면 자동으로 로그인 확인을 다시 합니다.
 
 ## 데모 모드
 
