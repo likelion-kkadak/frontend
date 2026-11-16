@@ -1,6 +1,7 @@
 import { CARD_STATUSES, formatRelative } from '../api/models.js';
 import { EmptyState, ErrorState, InlineSpinner, LoadingState } from '../components/ApiState.jsx';
 import { DecisionCard, PageHead } from '../components/ui.jsx';
+import AiStatusPanel from '../components/AiStatusPanel.jsx';
 import ConnectionBanner from '../components/ConnectionBanner.jsx';
 import SyncButton from '../components/SyncButton.jsx';
 import { useDecisionList } from '../hooks/useDecisions.js';
@@ -52,12 +53,8 @@ export default function DashboardPage({ guildId, dashboard, sync, canManage, sta
         )}
         <SyncButton sync={sync} canManage={canManage} botDown={health.isBotDown} onClick={startSync} />
       </div>
-      {sync.isRunning && (
-        <div className="sync-progress" aria-label={`동기화 진행률 ${sync.progress}%`}>
-          <i style={{ width: `${sync.progress}%` }} />
-        </div>
-      )}
       <ConnectionBanner query={dashboard} />
+      <AiStatusPanel guildId={guildId} sync={sync} latestJob={latestJob} canManage={canManage} />
       <section className="hero">
         <div className="hero-kicker">프로젝트 메모리</div>
         <h2>우리 팀의 결정을 한눈에.</h2>
