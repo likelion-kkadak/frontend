@@ -73,29 +73,44 @@ test('unknown selection hides and blocks a retained draft, recovery restores it,
   assert.equal(result.requests.some(r => r.startsWith('PUT ')), false);
 });
 
-test('canceling Discord login can return to the login screen without a cookie session', async () => {
+test('canceling Discord login returns to the landing page without an error modal', async () => {
   const result = await runBrowserFixture({ route: '/?state=fixture&error=access_denied', api: context => {
     if (context.path.endsWith('/auth/session')) return { status: 401, data: null };
     return defaults(context);
   }, source: `
-    await wait(()=>document.body.textContent.includes('Discord 로그인에 실패했어요'));
-    clickText('처음 화면으로');
     await wait(()=>document.body.textContent.includes('Discord로 시작하기'));
+    await new Promise(r=>setTimeout(r,100));
+    assert(!document.querySelector('[role=alertdialog]'),'user cancellation showed the failure modal');
     assert(!document.body.textContent.includes('로그인 정보를 확인하고 있어요'),'callback cancellation remained checking');
   ` });
   assert.equal(result.passed, true, result.error);
   assert.equal(result.requests.filter(r => r.startsWith('POST /api/v1/auth/login')).length, 0);
 });
 
-test('canceling login restores an existing cookie session when returning to the first screen', async () => {
+test('canceling login restores an existing cookie session', async () => {
   const result = await runBrowserFixture({ route: '/?state=fixture&error=access_denied', api: defaults, source: `
-    await wait(()=>document.body.textContent.includes('Discord 로그인에 실패했어요'));
-    clickText('처음 화면으로');
     await wait(()=>document.querySelector('.shell'));
     assert(document.body.textContent.includes('Fixture'),'existing account server was not restored');
   ` });
   assert.equal(result.passed, true, result.error);
   assert.equal(result.requests.filter(r => r === 'POST /api/v1/auth/session').length, 1);
+});
+
+test('a failed Discord login shows the failure modal over the landing page and keeps it when retry fails', async () => {
+  const result = await runBrowserFixture({ route: '/?state=fixture&error=server_error', api: context => {
+    if (context.path.endsWith('/auth/session')) return { status: 401, data: null };
+    if (context.path.endsWith('/auth/authorize')) return { status: 503, data: null };
+    return defaults(context);
+  }, source: `
+    await wait(()=>document.querySelector('[role=alertdialog]'));
+    assert(document.body.textContent.includes('Discord 연결에 실패했습니다.'),'failure modal text missing');
+    assert(document.querySelector('.landing-wrap'),'modal was not shown over the landing page');
+    clickText('다시 시도');
+    await wait(async()=> (await (await fetch('/fixture-requests')).json()).includes('GET /api/v1/auth/authorize'));
+    await wait(()=>!document.querySelector('[role=alertdialog] button').disabled);
+    assert(document.querySelector('[role=alertdialog]'),'failed retry closed the modal');
+  ` });
+  assert.equal(result.passed, true, result.error);
 });
 
 test('an incomplete state-only URL still restores the browser session', async () => {
@@ -106,9 +121,10 @@ test('an incomplete state-only URL still restores the browser session', async ()
   assert.equal(result.passed, true, result.error);
 });
 
-test('retrying canceled OAuth obtains a fresh authorization and consumes its login once', async () => {
+test('retrying a failed OAuth obtains a fresh authorization and consumes its login once', async () => {
   let posted;
-  const result = await runBrowserFixture({ route: '/?state=old-state&error=access_denied', api: async context => {
+  const result = await runBrowserFixture({ route: '/?state=old-state&error=server_error', api: async context => {
+    if (context.path.endsWith('/auth/session') && !context.requests.some(r => r.startsWith('POST /api/v1/auth/login'))) return { status: 401, data: null };
     if (context.path.endsWith('/auth/authorize')) return { data: { url: `http://${context.req.headers.host}/?state=fresh-state&code=fresh-code` } };
     if (context.path.endsWith('/auth/login')) {
       let body=''; for await (const chunk of context.req) body+=chunk;
@@ -118,9 +134,9 @@ test('retrying canceled OAuth obtains a fresh authorization and consumes its log
     return defaults(context);
   }, source: `
     if (!sessionStorage.getItem('retry-phase')) {
-      await wait(()=>document.body.textContent.includes('Discord 로그인에 실패했어요'));
+      await wait(()=>document.querySelector('[role=alertdialog]'));
       sessionStorage.setItem('retry-phase','started');
-      clickText('다시 로그인');
+      clickText('다시 시도');
       await new Promise(()=>{});
     } else {
       await wait(()=>document.querySelector('.channel-checks input:not(:disabled)'));

@@ -9,7 +9,7 @@ import react from '@vitejs/plugin-react';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Executes real React screens against a controlled HTTP boundary and reports browser assertions. */
-export async function runBrowserFixture({ source, route = '/#/setup', api }) {
+export async function runBrowserFixture({ source, route = '/#/setup', api, health }) {
   const profile = await mkdtemp(resolve(tmpdir(), 'ggaddak-screen-'));
   const requests = [];
   let finish;
@@ -25,6 +25,13 @@ export async function runBrowserFixture({ source, route = '/#/setup', api }) {
         }
         if (path === '/fixture-requests') {
           res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(requests)); return;
+        }
+        if (path === '/health' && health) {
+          requests.push(`${req.method} ${req.url}`);
+          const result = await health({ req, requests });
+          res.statusCode = result.status ?? 200;
+          if (result.body === undefined) { res.end(); return; }
+          res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(result.body)); return;
         }
         if (path.startsWith('/api/')) {
           requests.push(`${req.method} ${req.url}`);

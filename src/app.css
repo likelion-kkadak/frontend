@@ -345,6 +345,109 @@ img.avatar {
   box-shadow: 0 4px 14px #1113;
 }
 
+/* 연결 오류 처리 (화면설계 V0.2) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #1f253866;
+}
+
+.modal-dialog {
+  width: min(340px, 100%);
+  padding: 24px 22px 20px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 50px #1f25383d;
+  text-align: center;
+}
+
+.login-failure-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid #ef4444;
+  border-radius: 50%;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-failure h2 {
+  margin: 10px 0 6px;
+  font-size: 14px;
+  color: #252a38;
+}
+
+.login-failure p {
+  margin: 0 0 18px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #7b8492;
+}
+
+.login-failure .btn {
+  width: 100%;
+}
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 11px 14px;
+  border: 1px solid #fbcaca;
+  border-radius: 9px;
+  background: #fff4f4;
+}
+
+.connection-banner-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #dc2626;
+  border-radius: 50%;
+  color: #dc2626;
+  font-size: 9px;
+  font-weight: 800;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.connection-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-banner-text b {
+  display: block;
+  font-size: 11px;
+  color: #dc2626;
+}
+
+.connection-banner-text p {
+  margin: 3px 0 0;
+  font-size: 9px;
+  color: #7b8492;
+}
+
+.connection-banner .btn {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 10px;
+}
+
+.sync-bot-down {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 @media (max-width: 720px) {
   .metrics-three {
     grid-template-columns: 1fr;
@@ -353,6 +456,14 @@ img.avatar {
   .sync-strip {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .connection-banner {
+    flex-wrap: wrap;
+  }
+
+  .connection-banner .btn {
+    width: 100%;
   }
 
   .why-search-row {

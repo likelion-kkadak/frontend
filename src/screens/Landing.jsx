@@ -1,26 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getErrorMessage } from '../api/errors.js';
 import { useToast } from '../components/Toast.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 
-export default function Landing() {
+/**
+ * @param {object} props
+ * @param {boolean} [props.loginFailed] Discord 콜백 단계에서 로그인이 실패했는지 (오류 모달로 시작)
+ * @param {() => void} [props.onDismissFailure]
+ */
+export default function Landing({ loginFailed = false, onDismissFailure }) {
   const { startLogin, error } = useAuth();
   const toast = useToast();
   const [isStarting, setIsStarting] = useState(false);
+  // Discord 연결 실패 모달 (화면설계 01-01). 다시 시도가 성공해 Discord로 이동하기 전까지 유지한다
+  const [showFailure, setShowFailure] = useState(loginFailed);
 
-  // 세션 만료 등으로 로그아웃된 경우 안내
   useEffect(() => {
-    if (error) toast(getErrorMessage(error));
+    if (loginFailed) setShowFailure(true);
+  }, [loginFailed]);
+
+  // 세션 만료 등으로 로그아웃된 경우 안내 (실패 모달이 떠 있으면 중복 안내하지 않는다)
+  useEffect(() => {
+    if (error && !showFailure) toast(getErrorMessage(error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error, toast]);
 
   const onStart = async () => {
     setIsStarting(true);
     try {
       await startLogin(); // 성공하면 Discord로 페이지 이동
-    } catch (err) {
-      toast(getErrorMessage(err, { 0: 'Discord 로그인 주소를 받지 못했어요. 서버 연결을 확인해 주세요.' }));
+    } catch {
+      setShowFailure(true);
       setIsStarting(false);
     }
+  };
+
+  const closeFailure = () => {
+    setShowFailure(false);
+    onDismissFailure?.();
   };
 
   return (
@@ -88,6 +105,36 @@ export default function Landing() {
           </article>
         </div>
       </section>
+      {showFailure && <LoginFailureModal isRetrying={isStarting} onRetry={onStart} onClose={closeFailure} />}
     </section>
+  );
+}
+
+function LoginFailureModal({ isRetrying, onRetry, onClose }) {
+  const retryRef = useRef(null);
+  useEffect(() => {
+    retryRef.current?.focus();
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-dialog login-failure" role="alertdialog" aria-modal="true" aria-labelledby="login-failure-title" aria-describedby="login-failure-desc">
+        <span className="login-failure-icon" aria-hidden="true">!</span>
+        <h2 id="login-failure-title">Discord 연결에 실패했습니다.</h2>
+        <p id="login-failure-desc">
+          Discord 연결 상태를 확인한 후
+          <br />
+          다시 시도해 주세요.
+        </p>
+        <button ref={retryRef} type="button" className="btn btn-primary" onClick={onRetry} disabled={isRetrying}>
+          {isRetrying ? 'Discord로 이동하는 중…' : '다시 시도'}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -1,8 +1,10 @@
 import { CARD_STATUSES, formatRelative } from '../api/models.js';
 import { EmptyState, ErrorState, InlineSpinner, LoadingState } from '../components/ApiState.jsx';
 import { DecisionCard, PageHead } from '../components/ui.jsx';
+import ConnectionBanner from '../components/ConnectionBanner.jsx';
 import SyncButton from '../components/SyncButton.jsx';
 import { useDecisionList } from '../hooks/useDecisions.js';
+import { isConnectionError, useServerHealth } from '../hooks/useServerHealth.jsx';
 import { navigate } from '../router.js';
 
 const QUICK_QUESTIONS = ['왜 타깃을 좁혔지?', '왜 GPS를 뺐지?', '최근 기술 결정은?'];
@@ -30,6 +32,9 @@ export default function DashboardPage({ guildId, dashboard, sync, canManage, sta
   const recent = useDecisionList(guildId, { status: CARD_STATUSES, size: 3 });
   const total = counts.confirmed + counts.onHold;
   const lastSync = formatRelative(lastSuccessfulAt);
+  const health = useServerHealth();
+  // BE 연결 실패는 상단 배너가 안내하므로 본문 오류 화면으로 바꾸지 않는다 (화면설계 03-01)
+  const connectionLost = health.isBackendDown || isConnectionError(dashboard.error);
 
   let syncText = lastSync ?? '아직 동기화 기록이 없어요';
   if (sync.isRunning) syncText = `동기화 진행 중 · 채널 ${sync.job?.completedChannels ?? 0}/${sync.job?.totalChannels ?? 0}`;
@@ -38,15 +43,21 @@ export default function DashboardPage({ guildId, dashboard, sync, canManage, sta
   return (
     <>
       <PageHead title="Dashboard" right={dashboard.isFetching && !dashboard.isLoading ? <InlineSpinner /> : null} />
-      <div className="sync-strip">
-        <span>◉ Discord 동기화 · {syncText}</span>
-        <SyncButton sync={sync} canManage={canManage} onClick={startSync} />
+      <div className={`sync-strip${health.isBotDown ? ' sync-strip-warning' : ''}`}>
+        {/* Bot이 끊기면 동기화만 막고, 조회·검수·수정은 그대로 쓴다 (화면설계 03-02) */}
+        {health.isBotDown ? (
+          <span className="sync-bot-down" role="status">◉ ⚠ Bot 연결을 확인할 수 없습니다.</span>
+        ) : (
+          <span>◉ Discord 동기화 · {syncText}</span>
+        )}
+        <SyncButton sync={sync} canManage={canManage} botDown={health.isBotDown} onClick={startSync} />
       </div>
       {sync.isRunning && (
         <div className="sync-progress" aria-label={`동기화 진행률 ${sync.progress}%`}>
           <i style={{ width: `${sync.progress}%` }} />
         </div>
       )}
+      <ConnectionBanner query={dashboard} />
       <section className="hero">
         <div className="hero-kicker">프로젝트 메모리</div>
         <h2>우리 팀의 결정을 한눈에.</h2>
@@ -55,11 +66,13 @@ export default function DashboardPage({ guildId, dashboard, sync, canManage, sta
 
       {dashboard.isLoading ? (
         <LoadingState rows={3} />
+      ) : connectionLost && !dashboard.isSuccess ? (
+        <EmptyState>서버에 다시 연결되면 카드 요약과 최근 Decision Card를 불러올게요.</EmptyState>
       ) : dashboard.isError && !dashboard.isSuccess ? (
         <ErrorState error={dashboard.error} onRetry={dashboard.refetch} title="대시보드를 불러오지 못했어요" />
       ) : (
         <>
-          {dashboard.isError && <ErrorState compact error={dashboard.error} onRetry={dashboard.refetch} />}
+          {dashboard.isError && !connectionLost && <ErrorState compact error={dashboard.error} onRetry={dashboard.refetch} />}
           <div className="section-head">
             <h2>
               카드 요약 <span className="summary-total">총 {total}개</span>

@@ -291,12 +291,20 @@ export function useOAuthCallback({ onSuccess } = {}) {
     // 주소창에서 일회용 code 제거
     window.history.replaceState(null, '', window.location.pathname);
 
+    // 사용자가 Discord 동의 화면에서 직접 취소한 경우(access_denied)는 오류로 안내하지 않는다 (화면설계 01-01)
+    if (params.get('error') === 'access_denied') {
+      setResult({
+        status: 'error',
+        error: new ApiError({ status: 0, code: 'OAUTH_CANCELED', message: 'Discord 로그인을 취소했어요.' }),
+      });
+      return;
+    }
     if (params.get('error') || !code || !state) {
       setResult({
         status: 'error',
         error: new ApiError({
           status: 0,
-          code: 'OAUTH_CANCELED',
+          code: 'OAUTH_FAILED',
           message: 'Discord 로그인이 완료되지 않았어요. 다시 시도해 주세요.',
         }),
       });
