@@ -101,12 +101,15 @@ public/
 
 1. 랜딩에서 `GET /auth/authorize`로 Discord 인증 URL을 받아 이동
 2. Discord가 `?code=...&state=...`로 FE에 돌려보냄 → `POST /auth/login`
-3. `GET /auth/me`, `GET /auth/guilds`로 사용자·서버 목록 조회
+3. login 응답의 검증된 사용자·서버 목록으로 화면 표시
 4. 선택한 서버에 동기화 채널이 없으면 연결 설정, 있으면 대시보드로 이동
 
-- accessToken은 `sessionStorage`에 저장됩니다(탭을 닫으면 로그아웃). 만료 2분 전에 `/auth/refresh`로 자동 갱신합니다.
-- 선택한 서버 ID는 `localStorage`에 저장되어 다음 접속 때 유지됩니다.
-- 토큰을 보냈는데 401이 오면 세션을 지우고 로그인 화면으로 돌아갑니다.
+- 새로고침 시 `POST /auth/session`을 HttpOnly 쿠키로 호출합니다. accessToken은 메모리에만 보관합니다.
+- JWT는 만료 2분 전에 `POST /auth/token`으로 갱신하며 서버 목록을 함께 조회하지 않습니다.
+- 가입한 서버 중 봇이 설치된 서버만 목록에 표시합니다. 수동 새로고침·창 포커스·네트워크 재연결 때 목록을 재검증하며 고정 주기 폴링은 하지 않습니다.
+- 목록 재검증 중에는 이전 카드·채널 화면을 제거하고 요청을 취소합니다. 확인 불가 상태는 재시도 화면으로 표시하고 로그인은 유지합니다.
+- 서버 선택은 사용자별로 저장합니다. 선택한 서버가 제거되면 첫 번째 확인된 서버로 이동하고, 서버가 없으면 빈 상태를 표시합니다.
+- `node --test tests/installed-guild-selection.browser.test.mjs`는 실제 Chrome·React·HTTP 요청으로 세션 복원과 서버 선택 무효화를 검증합니다. GGADDAK에서는 Herdr verify pane에서 실행합니다.
 
 ## 기능 플래그
 

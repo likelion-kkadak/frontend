@@ -1,176 +1,199 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { onUnauthorized } from '../api/client.js';
+import { invalidateRequestScope, onGuildAccessChanged, onUnauthorized } from '../api/client.js';
 import { authApi } from '../api/endpoints.js';
 import { ApiError, toApiError } from '../api/errors.js';
 import { canManageGuild } from '../api/models.js';
 import { tokenStore } from '../api/tokenStore.js';
 
-/**
- * 로그인 세션 · 서버(guild) 선택 상태.
- * 흐름: authorize → Discord 이동 → (FE 콜백) login → me/guilds → 서버 선택 (API 명세 3.1)
- *
- * 사용: <AuthProvider><App /></AuthProvider> 후 컴포넌트에서 useAuth()
- */
 const AuthContext = createContext(null);
-const GUILD_KEY = 'kkadak.selectedGuildId';
-const REFRESH_BEFORE_MS = 2 * 60 * 1000; // 만료 2분 전에 갱신
-const REFRESH_RETRY_MS = 30 * 1000;
-
-const readGuildId = () => {
-  try {
-    return localStorage.getItem(GUILD_KEY);
-  } catch {
-    return null;
-  }
+const REFRESH_BEFORE_MS = 2 * 60 * 1000;
+const selectionKey = (user) => `kkadak.selectedGuildId.${user.id ?? user.discordUserId}`;
+const savedSelection = (user) => {
+  try { return localStorage.getItem(selectionKey(user)); } catch { return null; }
 };
 
 export function AuthProvider({ children }) {
-  // checking: 저장된 토큰 확인 중 / authenticated / anonymous
-  const [status, setStatus] = useState(() => (tokenStore.getAccessToken() ? 'checking' : 'anonymous'));
+  const callbackAtMount = useRef(new URLSearchParams(window.location.search).has('state'));
+  const [status, setStatus] = useState('checking');
   const [user, setUser] = useState(null);
   const [guilds, setGuilds] = useState([]);
-  const [selectedGuildId, setSelectedGuildId] = useState(readGuildId);
+  const [selectedGuildId, setSelectedGuildId] = useState(null);
+  const [guildSelection, setGuildSelection] = useState({ status: 'unavailable', checkedAt: null });
+  const [isRevalidating, setIsRevalidating] = useState(false);
+  const [scopeKey, setScopeKey] = useState(0);
   const [error, setError] = useState(null);
-  const [expiresAt, setExpiresAt] = useState(() => tokenStore.get()?.expiresAt ?? null);
+  const [expiresAt, setExpiresAt] = useState(null);
   const [refreshRetry, setRefreshRetry] = useState(0);
+  const generation = useRef(0);
+  const currentUser = useRef(null);
+  const pendingGuilds = useRef(null);
+  const guildController = useRef(null);
+
+  const clearScope = useCallback(() => {
+    invalidateRequestScope();
+    setScopeKey((n) => n + 1);
+  }, []);
 
   const resetSession = useCallback((reason = null) => {
+    generation.current++;
+    guildController.current?.abort();
+    pendingGuilds.current = null;
+    currentUser.current = null;
+    clearScope();
     tokenStore.clear();
-    setUser(null);
-    setGuilds([]);
-    setExpiresAt(null);
-    setError(reason);
-    setStatus('anonymous');
-  }, []);
+    setUser(null); setGuilds([]); setSelectedGuildId(null);
+    setGuildSelection({ status: 'unavailable', checkedAt: null });
+    setIsRevalidating(false); setExpiresAt(null); setError(reason); setStatus('anonymous');
+  }, [clearScope]);
 
-  const loadGuilds = useCallback(async () => {
-    const { guilds: list } = await authApi.guilds();
+  const applyGuilds = useCallback((result, account, restore = false) => {
+    const selection = result.guildSelection ?? { status: 'ready', checkedAt: null };
+    const list = selection.status === 'ready' && Array.isArray(result.guilds) ? result.guilds : [];
+    setGuildSelection(selection);
     setGuilds(list);
-    // 저장된 선택이 목록에 없으면 첫 서버로 (접근 권한이 사라진 서버 데이터 노출 방지)
-    setSelectedGuildId((current) => (list.some((g) => g.id === current) ? current : list[0]?.id ?? null));
-    return list;
+    if (selection.status === 'ready') setSelectedGuildId((previous) => {
+      const preferred = restore ? savedSelection(account) : previous;
+      return list.some((g) => g.id === preferred) ? preferred : list[0]?.id ?? null;
+    });
+    setError(null);
   }, []);
 
-  // 새로고침 시 저장된 토큰으로 세션 복원
+  const restoreSession = useCallback(async () => {
+    const epoch = ++generation.current;
+    guildController.current?.abort(); pendingGuilds.current = null;
+    clearScope(); setIsRevalidating(false); setStatus('checking'); setGuilds([]); setUser(null);
+    try {
+      const result = await authApi.session();
+      if (epoch !== generation.current) return;
+      currentUser.current = result.user;
+      tokenStore.set(result); setExpiresAt(result.expiresAt); setUser(result.user);
+      applyGuilds(result, result.user, true); setIsRevalidating(false); setStatus('authenticated');
+    } catch (err) {
+      if (epoch !== generation.current) return;
+      const failure = toApiError(err);
+      if (failure.status === 401) resetSession(failure);
+      else { setError(failure); setStatus('session-error'); }
+    }
+  }, [applyGuilds, clearScope, resetSession]);
+
+  const loadGuilds = useCallback(() => {
+    if (pendingGuilds.current) return pendingGuilds.current;
+    const account = currentUser.current;
+    if (!account) return Promise.resolve([]);
+    const epoch = generation.current;
+    const controller = new AbortController();
+    guildController.current = controller;
+    clearScope(); setIsRevalidating(true);
+    const task = authApi.guilds({ signal: controller.signal }).then((result) => {
+      if (epoch !== generation.current || controller.signal.aborted) return [];
+      applyGuilds(result, account);
+      return result.guilds;
+    }).catch((err) => {
+      if (epoch !== generation.current || controller.signal.aborted) return [];
+      setGuilds([]);
+      setGuildSelection({ status: 'unavailable', checkedAt: null });
+      setError(toApiError(err));
+      throw err;
+    }).finally(() => {
+      if (pendingGuilds.current === task) pendingGuilds.current = null;
+      if (epoch === generation.current) setIsRevalidating(false);
+    });
+    pendingGuilds.current = task;
+    return task;
+  }, [applyGuilds, clearScope]);
+
   useEffect(() => {
-    if (status !== 'checking') return;
-    let cancelled = false;
-    Promise.all([authApi.me(), loadGuilds()])
-      .then(([me]) => {
-        if (cancelled) return;
-        setUser(me);
-        setStatus('authenticated');
-      })
-      .catch((err) => {
-        if (!cancelled) resetSession(toApiError(err));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, loadGuilds, resetSession]);
+    // OAuth 콜백은 login 응답의 검증된 목록을 그대로 사용한다.
+    if (callbackAtMount.current) return undefined;
+    restoreSession();
+    return () => { generation.current++; guildController.current?.abort(); };
+  }, [restoreSession]);
 
-  // 어떤 API든 401을 받으면 로그아웃 상태로 전환
-  useEffect(() => onUnauthorized((err) => resetSession(err)), [resetSession]);
+  useEffect(() => onUnauthorized(() => { restoreSession(); }), [restoreSession]);
+  useEffect(() => onGuildAccessChanged(() => { loadGuilds().catch(() => undefined); }), [loadGuilds]);
+  useEffect(() => {
+    if (status !== 'authenticated') return undefined;
+    const refresh = () => { if (document.visibilityState !== 'hidden') loadGuilds().catch(() => undefined); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh); };
+  }, [status, loadGuilds]);
 
-  // 만료 전 자동 갱신 (이미 만료된 토큰은 갱신 불가 → 재로그인)
+  // JWT 갱신은 서버 목록 조회와 분리한다. 설치 목록의 주기적 폴링은 하지 않는다.
   useEffect(() => {
     if (status !== 'authenticated' || !expiresAt) return undefined;
-    const delay = refreshRetry
-      ? REFRESH_RETRY_MS
-      : Math.max(Date.parse(expiresAt) - Date.now() - REFRESH_BEFORE_MS, 5000);
+    const epoch = generation.current;
     const timer = setTimeout(async () => {
       try {
-        const next = await authApi.refresh();
-        tokenStore.set(next);
-        setExpiresAt(next.expiresAt);
-        setRefreshRetry(0);
-        loadGuilds().catch(() => undefined); // 서버 목록 갱신 실패는 세션을 끊지 않음
+        const next = await authApi.token();
+        if (epoch !== generation.current) return;
+        const accountId = currentUser.current?.id ?? currentUser.current?.discordUserId;
+        if (next.userId && String(next.userId) !== String(accountId)) { await restoreSession(); return; }
+        tokenStore.set(next); setExpiresAt(next.expiresAt); setRefreshRetry(0);
       } catch (err) {
-        const apiError = toApiError(err);
-        // 네트워크 문제이고 토큰이 아직 유효하면 잠시 뒤 다시 시도
-        if (apiError.isNetworkError && !tokenStore.isExpired()) setRefreshRetry((n) => n + 1);
-        else resetSession(apiError);
+        if (epoch !== generation.current) return;
+        const failure = toApiError(err);
+        if (failure.status === 401) resetSession(failure);
+        else setRefreshRetry((n) => n + 1);
       }
-    }, delay);
+    }, refreshRetry ? 30000 : Math.max(Date.parse(expiresAt) - Date.now() - REFRESH_BEFORE_MS, 5000));
     return () => clearTimeout(timer);
-  }, [status, expiresAt, refreshRetry, loadGuilds, resetSession]);
+  }, [status, expiresAt, refreshRetry, restoreSession, resetSession]);
 
   useEffect(() => {
+    if (!user || isRevalidating || guildSelection.status !== 'ready') return;
     try {
-      if (selectedGuildId) localStorage.setItem(GUILD_KEY, selectedGuildId);
-      else localStorage.removeItem(GUILD_KEY);
-    } catch {
-      // 무시
-    }
-  }, [selectedGuildId]);
+      if (selectedGuildId) localStorage.setItem(selectionKey(user), selectedGuildId);
+      else localStorage.removeItem(selectionKey(user));
+    } catch { /* 저장소 사용 불가 시 메모리만 사용 */ }
+  }, [user, selectedGuildId, isRevalidating, guildSelection.status]);
 
-  /** "Discord로 시작하기" 버튼: 인증 URL을 받아 Discord로 이동 */
   const startLogin = useCallback(async () => {
     setError(null);
-    try {
-      const { url } = await authApi.authorize();
-      window.location.assign(url);
-    } catch (err) {
-      const apiError = toApiError(err);
-      setError(apiError);
-      throw apiError;
-    }
+    try { const { url } = await authApi.authorize(); window.location.assign(url); }
+    catch (err) { const failure = toApiError(err); setError(failure); throw failure; }
   }, []);
 
-  /** FE 콜백 페이지에서 code/state로 로그인 완료 */
-  const completeLogin = useCallback(
-    async ({ code, state }) => {
-      setError(null);
-      setStatus('checking-callback');
-      try {
-        const result = await authApi.login({ code, state });
-        tokenStore.set(result);
-        setExpiresAt(result.expiresAt);
-        setUser(result.user);
-        await loadGuilds();
-        setStatus('authenticated');
-        return result.user;
-      } catch (err) {
-        // state는 일회성이라 실패하면 authorize부터 다시 시작해야 함
-        resetSession(toApiError(err));
-        throw toApiError(err);
+  const completeLogin = useCallback(async ({ code, state }) => {
+    const epoch = ++generation.current;
+    guildController.current?.abort(); pendingGuilds.current = null;
+    clearScope(); setError(null); setGuilds([]); setUser(null); setStatus('checking-callback');
+    try {
+      const result = await authApi.login({ code, state });
+      if (epoch !== generation.current) throw new ApiError({ status: 0, code: 'CANCELED' });
+      currentUser.current = result.user;
+      tokenStore.set(result); setExpiresAt(result.expiresAt); setUser(result.user);
+      if (Array.isArray(result.guilds)) applyGuilds(result, result.user, true);
+      else {
+        const snapshot = await authApi.guilds();
+        if (epoch !== generation.current) throw new ApiError({ status: 0, code: 'CANCELED' });
+        applyGuilds(snapshot, result.user, true);
       }
-    },
-    [loadGuilds, resetSession],
-  );
+      setIsRevalidating(false); setStatus('authenticated'); return result.user;
+    } catch (err) { if (epoch === generation.current) resetSession(toApiError(err)); throw toApiError(err); }
+  }, [applyGuilds, clearScope, resetSession]);
 
   const logout = useCallback(async () => {
-    try {
-      if (tokenStore.getAccessToken()) await authApi.logout();
-    } catch {
-      // 서버 세션 삭제에 실패해도 FE 토큰·캐시는 지운다
-    } finally {
-      resetSession();
-    }
-  }, [resetSession]);
+    generation.current++;
+    guildController.current?.abort();
+    clearScope(); setStatus('checking'); setGuilds([]); setUser(null);
+    try { await authApi.logout(); } catch { /* 로컬 세션은 실패 시에도 비운다. */ }
+    finally { resetSession(); }
+  }, [clearScope, resetSession]);
 
-  const selectedGuild = guilds.find((g) => g.id === selectedGuildId) ?? null;
-
-  const value = useMemo(
-    () => ({
-      status,
-      isAuthenticated: status === 'authenticated',
-      isChecking: status === 'checking' || status === 'checking-callback',
-      user,
-      guilds,
-      selectedGuild,
-      guildId: selectedGuild?.id ?? null,
-      canManage: canManageGuild(selectedGuild),
-      error,
-      selectGuild: setSelectedGuildId,
-      reloadGuilds: loadGuilds,
-      startLogin,
-      completeLogin,
-      logout,
-    }),
-    [status, user, guilds, selectedGuild, error, loadGuilds, startLogin, completeLogin, logout],
-  );
-
+  const selectGuild = useCallback((id) => {
+    if (isRevalidating || !guilds.some((g) => g.id === id) || id === selectedGuildId) return;
+    clearScope(); setSelectedGuildId(id);
+  }, [clearScope, guilds, isRevalidating, selectedGuildId]);
+  const selectedGuild = !isRevalidating && guildSelection.status === 'ready'
+    ? guilds.find((g) => g.id === selectedGuildId) ?? null : null;
+  const value = useMemo(() => ({
+    status, isAuthenticated: status === 'authenticated',
+    isChecking: status === 'checking' || status === 'checking-callback',
+    user, guilds, guildSelection, isRevalidating, scopeKey, selectedGuild,
+    guildId: selectedGuild?.id ?? null, canManage: canManageGuild(selectedGuild), error,
+    selectGuild, reloadGuilds: loadGuilds, retrySession: restoreSession, startLogin, completeLogin, logout,
+  }), [status, user, guilds, guildSelection, isRevalidating, scopeKey, selectedGuild, error, selectGuild, loadGuilds, restoreSession, startLogin, completeLogin, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

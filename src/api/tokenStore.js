@@ -1,30 +1,7 @@
-/**
- * accessToken 보관소.
- * 새로고침해도 로그인이 유지되도록 sessionStorage에 두고, 탭을 닫으면 사라진다.
- * (토큰 유효시간 15분, 만료 전 /auth/refresh로 교체 — API 명세 3.1)
- */
-const STORAGE_KEY = 'kkadak.session';
+/** Access token은 메모리에만 보관하고 새로고침 시 HttpOnly 쿠키로 세션을 복원한다. */
 const listeners = new Set();
-
-let session = readStorage();
-
-function readStorage() {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(value) {
-  try {
-    if (value) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    else sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // 저장소를 쓸 수 없는 환경(사생활 보호 모드 등)에서는 메모리에만 유지
-  }
-}
+let session = null;
+try { sessionStorage.removeItem('kkadak.session'); } catch { /* 이전 버전 저장값 정리 */ }
 
 export const tokenStore = {
   /** @returns {{accessToken: string, tokenType: string, expiresAt: string} | null} */
@@ -42,16 +19,14 @@ export const tokenStore = {
     return Date.parse(session.expiresAt) - skewMs <= Date.now();
   },
 
-  set({ accessToken, tokenType = 'Bearer', expiresAt }) {
-    session = { accessToken, tokenType, expiresAt };
-    writeStorage(session);
+  set({ accessToken, tokenType = 'Bearer', expiresAt, userId, user }) {
+    session = { accessToken, tokenType, expiresAt, userId: userId ?? user?.id ?? session?.userId };
     listeners.forEach((fn) => fn(session));
   },
 
   clear() {
     if (!session) return;
     session = null;
-    writeStorage(null);
     listeners.forEach((fn) => fn(null));
   },
 
