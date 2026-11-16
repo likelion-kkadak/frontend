@@ -85,7 +85,7 @@ function Workspace({ auth, route, blocked }) {
   const snapshot = verified.current;
   if (!snapshot) return null;
   return (
-    <div hidden={blocked} inert={blocked ? '' : undefined} data-workspace="">
+    <div hidden={blocked} inert={blocked} data-workspace="">
       <WorkspaceAuthProvider value={snapshot.auth}>
         {snapshot.route.page === 'setup'
           ? <Setup key={snapshot.auth.scopeKey} />
