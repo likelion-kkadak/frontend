@@ -20,7 +20,8 @@ test('cookie bootstrap and selection revalidation gate stale guild data without 
   const other = { ...guild, id: 'other', name: '다른 설치 서버' };
   // unavailable에 잘못 섞인 stale 목록도 UI가 방어적으로 제거해야 한다.
   const snapshot = () => ({ guilds: guildReads === 2 ? [] : guildReads >= 3 ? [guild, other] : [guild], guildSelection: { status: [1, 4].includes(guildReads) ? 'unavailable' : 'ready', checkedAt: null } });
-  const server = await createServer({ root, configFile: false, server: { host: '127.0.0.1', port: 0 }, appType: 'custom', plugins: [react(), {
+  const profile = await mkdtemp(resolve(tmpdir(), 'ggaddak-browser-'));
+  const server = await createServer({ root, cacheDir: resolve(profile, 'vite-cache'), configFile: false, server: { host: '127.0.0.1', port: 0 }, appType: 'custom', plugins: [react(), {
     name: 'selection-browser-fixture',
     configureServer(vite) {
       vite.middlewares.use(async (req, res, next) => {
@@ -99,12 +100,11 @@ test('cookie bootstrap and selection revalidation gate stale guild data without 
       });
     },
   }] });
-  const profile = await mkdtemp(resolve(tmpdir(), 'ggaddak-browser-'));
   try {
     await server.listen();
     const port = server.httpServer.address().port;
     const output = await new Promise((resolveOutput, reject) => {
-      const browser = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, `http://127.0.0.1:${port}/`], { stdio: 'ignore' });
+      const browser = spawn(process.env.CHROME_EXECUTABLE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, `http://127.0.0.1:${port}/`], { stdio: 'ignore' });
       browser.on('error', reject);
       browserResult.then(output => { clearTimeout(timer); browser.kill('SIGTERM'); browser.once('close', () => resolveOutput(output)); });
       const timer = setTimeout(() => { browser.kill('SIGKILL'); reject(Error('browser timeout: ' + requests.join(', '))); }, 15000);
@@ -117,6 +117,6 @@ test('cookie bootstrap and selection revalidation gate stale guild data without 
     assert.equal(requests.filter(r => r === 'GET /api/v1/protected').length, 2);
     assert.equal(requests.filter(r => r === 'POST /api/v1/mutation').length, 1);
   } finally {
-    await server.close(); await rm(profile, { recursive: true, force: true });
+    await server.close(); await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

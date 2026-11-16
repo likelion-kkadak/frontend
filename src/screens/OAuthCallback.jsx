@@ -5,11 +5,7 @@ import { ErrorState, LoadingState } from '../components/ApiState.jsx';
 import { useAuth, useOAuthCallback } from '../hooks/useAuth.jsx';
 import { navigate } from '../router.js';
 
-/** URL에 Discord OAuth 결과(code·state)가 있는지 */
-export const hasOAuthParams = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('state') && (params.has('code') || params.has('error'));
-};
+export { hasOAuthParams } from '../hooks/useAuth.jsx';
 
 /**
  * Discord가 돌려보낸 콜백 처리.
@@ -17,7 +13,7 @@ export const hasOAuthParams = () => {
  */
 export default function OAuthCallback({ onDone }) {
   const { status, error } = useOAuthCallback();
-  const { guildId, isAuthenticated, startLogin } = useAuth();
+  const { guildId, isAuthenticated, startLogin, retrySession } = useAuth();
   const routedRef = useRef(false);
 
   useEffect(() => {
@@ -58,6 +54,7 @@ export default function OAuthCallback({ onDone }) {
               onClick={() => {
                 navigate('/');
                 onDone();
+                retrySession();
               }}
             >
               처음 화면으로
