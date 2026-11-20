@@ -62,6 +62,17 @@ npm run preview   # 빌드 결과 미리 보기
 
 > 개발 서버 포트는 **3002로 고정**입니다(`strictPort`). Discord OAuth 콜백 URI가 3002 포트 기준으로 등록되어 있기 때문입니다. 다른 포트를 쓰려면 BE 설정과 Discord OAuth 등록값도 같이 바꿔야 합니다.
 
+### 4. 배포 (Vercel)
+
+배포 환경에는 Vite 개발 서버의 프록시가 없으므로, `vercel.json`의 `rewrites`가 `/api`·`/health` 요청을 Render BE(`https://ggadak.onrender.com`)로 넘깁니다. 배포 BE는 다른 Origin의 요청(CORS)을 허용하지 않으므로 이 프록시를 거쳐야 합니다.
+
+| Vercel 환경변수 | 값 |
+| --- | --- |
+| `VITE_PROPOSED_APIS` | BE가 구현한 기능 플래그 (Production·Preview) |
+| `VITE_API_BASE_URL` | **설정하지 않음.** 값을 넣으면 프록시를 거치지 않아 CORS로 막힘 |
+
+`VITE_` 값은 빌드할 때 들어가므로 바꾼 뒤에는 Redeploy해야 합니다. Discord 로그인은 BE의 redirect_uri와 Discord OAuth Redirects에 배포 주소가 등록되어 있어야 동작합니다. Preview 배포는 주소가 매번 달라 로그인할 수 없습니다.
+
 ## 폴더 구조
 
 ```
