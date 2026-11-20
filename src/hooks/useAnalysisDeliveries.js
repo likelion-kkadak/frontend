@@ -44,7 +44,9 @@ export function useAnalysisDeliveries(guildId) {
     enabled: Boolean(guildId),
     tags: [TAGS.ANALYSIS],
     refetchInterval: (data) =>
-      data.requests.some((r) => IN_PROGRESS.has(r.status) || isAwaitingResult(r, snapshots[r.requestId]))
+      (Array.isArray(data?.requests) ? data.requests : []).some(
+        (r) => IN_PROGRESS.has(r.status) || isAwaitingResult(r, snapshots[r.requestId]),
+      )
         ? POLL_MS
         : false,
   });
@@ -90,7 +92,7 @@ export function useAnalysisDeliveries(guildId) {
   );
 
   const data = query.data;
-  const requests = (data?.requests ?? []).map((r) => {
+  const requests = (Array.isArray(data?.requests) ? data.requests : []).map((r) => {
     const isRetrying = isAwaitingResult(r, snapshots[r.requestId]);
     return {
       ...r,

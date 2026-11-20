@@ -345,6 +345,202 @@ img.avatar {
   box-shadow: 0 4px 14px #1113;
 }
 
+/* AI 동작 상태 */
+.ai-status {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.ai-status-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ai-status-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.ai-status-info .ai-status-dot.is-active { background: var(--p); animation: ai-pulse 1.2s ease-in-out infinite; }
+.ai-status-success .ai-status-dot { background: #16a34a; }
+.ai-status-warning .ai-status-dot { background: #f59e0b; }
+.ai-status-error .ai-status-dot { background: #dc2626; }
+
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 #6366f155; }
+  50% { box-shadow: 0 0 0 5px #6366f100; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-status-dot.is-active { animation: none; }
+}
+
+.ai-status-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-status-text b {
+  display: block;
+  font-size: 11px;
+  color: #303847;
+}
+
+.ai-status-kicker {
+  margin-right: 8px;
+  color: var(--p);
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
+.ai-status-text p {
+  margin: 4px 0 0;
+  font-size: 9px;
+  color: #7b8492;
+}
+
+.ai-status-error .ai-status-text p { color: #dc2626; }
+
+.ai-status-head .text-link {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.ai-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #f6f7fa;
+  color: #9aa1ae;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ai-step-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.ai-step.is-done { color: #16a34a; background: #effaf3; }
+.ai-step.is-done .ai-step-mark { background: #16a34a; color: #fff; }
+.ai-step.is-current { color: #4f46e5; background: #efefff; }
+.ai-step.is-current .ai-step-mark { background: var(--p); color: #fff; }
+.ai-step.is-warning { color: #b45309; background: #fff8eb; }
+.ai-step.is-warning .ai-step-mark { background: #f59e0b; color: #fff; }
+.ai-step.is-error { color: #dc2626; background: #fff4f4; }
+.ai-step.is-error .ai-step-mark { background: #dc2626; color: #fff; }
+
+.ai-status-progress {
+  margin: 8px 0 0;
+}
+
+.ai-status-note {
+  margin: 10px 0 0;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: #fff8eb;
+  color: #a16207;
+  font-size: 9px;
+}
+
+.ai-status-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eff1f5;
+}
+
+.ai-channel-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+
+.ai-channel-table th {
+  height: 30px;
+  padding: 0 10px;
+  background: #f6f7fa;
+  color: #6b7280;
+  font-size: 9px;
+  text-align: left;
+}
+
+.ai-channel-table td {
+  padding: 8px 10px;
+  border-top: 1px solid #edf0f4;
+  color: #5d6674;
+  font-size: 9px;
+  vertical-align: middle;
+}
+
+.ai-channel-name { font-weight: 700; color: #303847 !important; white-space: nowrap; }
+
+.ai-channel-error {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-badge {
+  display: inline-block;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #f1f1f5;
+  color: #6b7280;
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ai-badge-pending, .ai-badge-retry-pending { background: #efefff; color: #4f46e5; }
+.ai-badge-retained-failure { background: #fff0f0; color: #dc2626; }
+.ai-badge-completed-with-candidates { background: #e8f8ee; color: #16a34a; }
+
+.ai-channel-table .ai-retry {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.ai-job-info {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 12px 0 0;
+  font-size: 9px;
+}
+
+.ai-job-info dt { color: #9aa1ae; }
+.ai-job-info dd { margin: 2px 0 0; color: #4d5664; font-weight: 600; overflow-wrap: anywhere; }
+.ai-job-info .ai-job-error { grid-column: 1 / -1; }
+.ai-job-info .ai-job-error dd { color: #dc2626; }
+
 /* 연결 오류 처리 (화면설계 V0.2) */
 .modal-backdrop {
   position: fixed;
@@ -464,6 +660,14 @@ img.avatar {
 
   .connection-banner .btn {
     width: 100%;
+  }
+
+  .ai-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-job-info {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .why-search-row {
