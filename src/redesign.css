@@ -54,6 +54,11 @@
   color: #6b7280;
 }
 
+.review-card-lines .why-missing {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .review-card-actions {
   display: flex;
   gap: 8px;
