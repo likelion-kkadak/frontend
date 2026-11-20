@@ -7,8 +7,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      // Discord OAuth 콜백 URI가 3000 포트 기준으로 등록되어 있음 (API 명세 1.1)
-      port: 3000,
+      // Discord OAuth 콜백 URI가 3002 포트 기준으로 등록되어 있음 (BE redirect_uri: http://localhost:3002/)
+      port: 3002,
       strictPort: true,
       proxy: {
         '/api': {

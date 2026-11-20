@@ -55,12 +55,12 @@ cp .env.example .env
 로그인하려면 BE 서버(`http://localhost:3001`)가 실행 중이어야 합니다. BE가 꺼져 있으면 터미널에 `http proxy error … ECONNREFUSED` 로그가 반복되고 화면에는 "서버에 연결할 수 없습니다"와 다시 시도 버튼이 보입니다. BE를 켜면 새로고침 없이 자동으로 다시 연결됩니다.
 
 ```bash
-npm run dev       # 개발 서버 → http://localhost:3000
+npm run dev       # 개발 서버 → http://localhost:3002
 npm run build     # 배포용 빌드 → dist/
 npm run preview   # 빌드 결과 미리 보기
 ```
 
-> 개발 서버 포트는 **3000으로 고정**입니다(`strictPort`). Discord OAuth 콜백 URI가 3000 포트 기준으로 등록되어 있기 때문입니다. 다른 포트를 쓰려면 BE 설정과 Discord OAuth 등록값도 같이 바꿔야 합니다.
+> 개발 서버 포트는 **3002로 고정**입니다(`strictPort`). Discord OAuth 콜백 URI가 3002 포트 기준으로 등록되어 있기 때문입니다. 다른 포트를 쓰려면 BE 설정과 Discord OAuth 등록값도 같이 바꿔야 합니다.
 
 ## 폴더 구조
 
@@ -154,7 +154,7 @@ VITE_PROPOSED_APIS=decisionDelete,listFilters
 
 ## 데모 모드
 
-`http://localhost:3000/?demo`로 접속하면 BE 없이 샘플 데이터로 만든 프로토타입 화면을 볼 수 있습니다. 실제 API는 호출하지 않습니다.
+`http://localhost:3002/?demo`로 접속하면 BE 없이 샘플 데이터로 만든 프로토타입 화면을 볼 수 있습니다. 실제 API는 호출하지 않습니다.
 
 ### 지속적인 권한 확인 실패
 
