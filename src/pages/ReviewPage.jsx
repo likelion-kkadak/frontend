@@ -158,6 +158,8 @@ export default function ReviewPage({ route, guildId, sync, canManage, startSync 
   );
 }
 
+const MISSING_RATIONALE = '대화에서 근거를 찾지 못했어요. 수정을 눌러 직접 입력할 수 있어요.';
+
 /** 검수 후보 카드: 태그 · 제목 · 결정/근거 두 줄 · 오른쪽 확정/수정/보류 · 휴지통(삭제) */
 function ReviewCard({ card, busy, onConfirm, onEdit, onDefer, onDelete }) {
   return (
@@ -178,7 +180,7 @@ function ReviewCard({ card, busy, onConfirm, onEdit, onDefer, onDelete }) {
           </div>
           <div>
             <dt>근거</dt>
-            <dd>{card.why}</dd>
+            <dd>{card.whyMissing ? <span className="why-missing">{MISSING_RATIONALE}</span> : card.why}</dd>
           </div>
         </dl>
       </div>

@@ -147,6 +147,8 @@ export function toDecisionCard(dto) {
     title: dto.title || dto.topic,
     summary: dto.decisionContent || dto.decision,
     why: dto.rationaleSummary || dto.rationale,
+    /** BE가 대화에서 근거를 찾지 못하면 rationale을 비우고 rationaleStatus='not_stated'로 보낸다 */
+    whyMissing: !(dto.rationaleSummary || dto.rationale)?.trim(),
     confirmedDate,
     createdAt: dto.createdAt,
     date: formatDate(confirmedDate ?? dto.createdAt),

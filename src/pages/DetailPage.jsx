@@ -205,6 +205,9 @@ function DecisionForm({ guildId, decision, card, onSaved, backgroundError }) {
             <div className="d-field">
               <label htmlFor="f-rationale">결정 근거</label>
               <textarea id="f-rationale" value={form.rationale} onChange={set('rationale')} disabled={readOnly} maxLength={10000} />
+              {card.whyMissing && !form.rationale.trim() && (
+                <span className="d-help">대화에서 근거를 찾지 못했어요. 이 결정을 내린 이유를 직접 입력해 주세요.</span>
+              )}
               {fe.rationale && <span className="field-error">{fe.rationale}</span>}
             </div>
 
