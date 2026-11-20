@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://ggadak.onrender.com/api/:path*" },
+    { "source": "/health", "destination": "https://ggadak.onrender.com/health" }
+  ]
+}
