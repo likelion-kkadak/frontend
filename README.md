@@ -45,14 +45,14 @@ cp .env.example .env
 
 | 변수 | 설명 |
 | --- | --- |
-| `VITE_API_PROXY_TARGET` | 개발 서버의 `/api`·`/health` 프록시 대상. 기본값 `http://localhost:3001` |
+| `VITE_API_PROXY_TARGET` | 개발 서버의 `/api`·`/health` 프록시 대상. 예시 파일은 팀 공용 배포 BE(`https://ggadak.onrender.com`). 값이 없으면 `http://localhost:3001` |
 | `VITE_API_BASE_URL` | 프록시 없이 BE Origin을 직접 호출할 때만 설정. 비우면 같은 Origin의 `/api` 사용 |
 | `VITE_DISCORD_BOT_INVITE_URL` | 봇 초대 링크. 봇 초대 API가 생기기 전까지 쓰는 임시 값 |
 | `VITE_PROPOSED_APIS` | BE가 구현한 "FE 요청 API" 이름을 쉼표로 나열 (`all` = 전부). 아래 [기능 플래그](#기능-플래그) 참고 |
 
 ### 3. 실행
 
-로그인하려면 BE 서버(`http://localhost:3001`)가 실행 중이어야 합니다. BE가 꺼져 있으면 터미널에 `http proxy error … ECONNREFUSED` 로그가 반복되고 화면에는 "서버에 연결할 수 없습니다"와 다시 시도 버튼이 보입니다. BE를 켜면 새로고침 없이 자동으로 다시 연결됩니다.
+`.env.example`을 그대로 복사했다면 배포 BE에 바로 연결되므로 BE를 따로 띄우지 않아도 됩니다. BE를 로컬에서 띄워 쓰려면 `VITE_API_PROXY_TARGET`을 `http://localhost:3001`로 바꾸세요. 연결할 BE가 꺼져 있으면 터미널에 `http proxy error … ECONNREFUSED` 로그가 반복되고 화면에는 "서버에 연결할 수 없습니다"와 다시 시도 버튼이 보입니다. BE를 켜면 새로고침 없이 자동으로 다시 연결됩니다.
 
 ```bash
 npm run dev       # 개발 서버 → http://localhost:3002
@@ -144,6 +144,13 @@ public/
 # 예) BE가 삭제와 기간 필터를 구현했을 때
 VITE_PROPOSED_APIS=decisionDelete,listFilters
 ```
+
+배포 BE(`https://ggadak.onrender.com`) 확인 결과 (2026-11-20):
+
+| 상태 | 플래그 |
+| --- | --- |
+| 켬 (`.env.example` 기본값, 실패 보고 없음) | `decisionDelete`, `decisionStatus`, `listFilters`, `approvals` |
+| 끔 — 배포 BE에서 실패 | `decisionEditExtra` (편집 시 `400 Invalid decision edit`), `multiStatus` (켜면 카드 전체 리스트의 확정·보류 카드가 제대로 표시되지 않음), `botInvite` (`404`) |
 
 - 응답에 필드만 추가되는 항목(`search`의 `answer`, `discord/channels`의 `topic`)은 플래그 없이, 필드가 오면 바로 화면에 반영됩니다.
 - 플래그가 꺼진 동안에는 기존 API로 가능한 만큼 대신 처리합니다. 예를 들어 보류 → 확정은 기존 검수 API로 바꾸고, 여러 상태의 목록은 상태별로 받아 FE에서 합칩니다.
